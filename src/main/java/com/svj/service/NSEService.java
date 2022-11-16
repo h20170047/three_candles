@@ -3,12 +3,14 @@ package com.svj.service;
 import com.svj.entity.Stock;
 import com.svj.exception.NSEDataProcessingException;
 import com.svj.utils.AppUtils;
+import org.apache.ant.compress.taskdefs.Unzip;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.nodes.Node;
 import org.jsoup.select.Elements;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -16,18 +18,27 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.text.ParseException;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
+
+import static java.time.temporal.ChronoUnit.DAYS;
 
 public class NSEService {
 
@@ -178,4 +189,92 @@ public class NSEService {
         result.put("bearish", bearish);
         return result;
     }
+
+
+
+    public void getOldData(){
+        getHolidays();
+    }
+
+    public List<LocalDate> getHolidays() {
+        Scanner s = null;
+        try {
+            s = new Scanner(new File("C:\\Users\\svjra\\Documents\\git\\Springboot\\three_candles\\src\\main\\resources\\NSEHolidays.txt"));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        ArrayList<LocalDate> holidays = new ArrayList<LocalDate>();
+        while (s.hasNext()){
+            String readLine = s.next();
+            readLine = (readLine.charAt(readLine.length() - 1) == ',') ? readLine.substring(0, readLine.length() - 1) : readLine;
+            readLine= readLine.substring(1, readLine.length()-1);
+            holidays.add(LocalDate.parse(readLine));
+        }
+        s.close();
+        return holidays;
+    }
+
+    public List<LocalDate> getBusinessDays(LocalDate startDate, LocalDate endDate, List<LocalDate> holidays) {
+        if(endDate.compareTo(startDate)< 0)
+            return null;
+        List<LocalDate> businessDays= Stream.iterate(startDate,date-> date.plusDays(1))
+                .limit(DAYS.between(startDate, endDate))
+                .filter(day-> !(day.getDayOfWeek() == DayOfWeek.SATURDAY) && !(day.getDayOfWeek() == DayOfWeek.SUNDAY))
+                .filter(day-> holidays== null? true: !holidays.contains(day) )
+                .collect(Collectors.toList());
+        System.out.println(businessDays);
+        return businessDays;
+    }
+
+
+    DateTimeFormatter df = DateTimeFormatter.ofPattern("d-M-yyyy");
+
+    // get response for a given date
+    // https://www1.nseindia.com/ArchieveSearch?h_filetype=eqbhav&date=15-11-2022&section=EQ
+    public void getBhavCopy(LocalDate day){
+        try {
+            Map<String, String> map= new HashMap<>();
+            map.put("Accept", "*/*");
+            map.put("Accept-Language", "en-US,en;q=0.5");
+            map.put("Connection", "keep-alive");
+            map.put("Upgrade-Insecure-Requests", "1");
+            map.put("Host", "www1.nseindia.com");
+            map.put("Referer", "https://www1.nseindia.com/products/content/equities/equities/archieve_eq.htm");
+            map.put("Sec-GPC", "1");
+            map.put("X-Requested-With", "XMLHttpRequest");
+            String savedFileName = "cm".concat(day.getDayOfMonth()<10?"0".concat(String.valueOf(day.getDayOfMonth())): String.valueOf(day.getDayOfMonth())).concat(day.getMonth().toString().substring(0, 3)).concat(String.valueOf(day.getYear())).concat("bhav.csv.zip");
+            byte[] bytes = Jsoup.connect(String.format("https://www1.nseindia.com/content/historical/EQUITIES/%s/%s/%s", day.getYear(), day.getMonth().toString().substring(0, 3), savedFileName))
+                    .headers(map)
+                    .ignoreContentType(true)
+                    .timeout(600000)
+                    .execute()
+                    .bodyAsBytes();
+            try {
+                if (!savedFileName.endsWith(".zip")){
+                    System.out.println(String.format("Issue with data in %s", day));
+                    return;
+                }
+                File file = new File("C:\\Users\\svjra\\Documents\\git\\Springboot\\three_candles\\zipData\\".concat(savedFileName));
+                file.getParentFile().mkdirs(); // Will create parent directories if not exists
+                file.createNewFile();
+                FileOutputStream fos = new FileOutputStream(file );
+                fos.write(bytes);
+                fos.close();
+
+                String sourceFile = "C:\\Users\\svjra\\Documents\\git\\Springboot\\three_candles\\zipData\\".concat(savedFileName);
+                String destinationFile = "C:\\Users\\svjra\\Documents\\git\\Springboot\\three_candles\\csvData\\";
+
+                Unzip unzipper = new Unzip();
+                unzipper.setSrc(new File(sourceFile));
+                unzipper.setDest(new File(destinationFile));
+                unzipper.execute();
+            } catch (IOException e) {
+                System.err.println("Could not read the file at '" + day + ":"+e.getMessage());
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 }
