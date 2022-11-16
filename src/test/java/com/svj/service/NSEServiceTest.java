@@ -27,39 +27,6 @@ public class NSEServiceTest {
         NSEService= new NSEService();
     }
 
-
-    @Test
-    public void getDataFromNSE() throws IOException {
-        String data= NSEService.getDataForDay();
-//        System.out.println(data);
-        assertThat(data).isNotEmpty();
-    }
-
-    @Test
-    public void testIfDataIsCaptured(){
-        try {
-            File f = new File("src/test/resources/sampleData.json");
-            if (f.exists()) {
-                InputStream is = new FileInputStream("src/test/resources/sampleData.json");
-                String jsonTxt = IOUtils.toString(is, "UTF-8");
-                List<Stock> dailyData= NSEService.convertTextToStocks(jsonTxt);
-                for(Stock stock: dailyData){
-                    System.out.print("\""+stock.getSymbol()+"\""+", ");
-                }
-                assertThat(dailyData.size()).isEqualTo(51); //NiftyIndex + 50 stocks
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Test
-    public void checkDataCollectionWithParse(){
-        List<Stock> stockList= NSEService.processData();
-        System.out.println(stockList);
-        assertThat(stockList.size()).isEqualTo(51);
-    }
-
     @Test
     public void getListOfBullBearUnknowns(){
         Map<String, List<String>> result= NSEService.getStocksListForDay();

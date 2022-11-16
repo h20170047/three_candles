@@ -1,29 +1,17 @@
 package com.svj.service;
 
 import com.svj.entity.Stock;
-import com.svj.exception.NSEDataProcessingException;
-import com.svj.utils.AppUtils;
 import org.apache.ant.compress.taskdefs.Unzip;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.nodes.Node;
-import org.jsoup.select.Elements;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.NumberFormat;
-import java.text.ParseException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,10 +21,6 @@ import java.time.temporal.ChronoField;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipException;
-import java.util.zip.ZipFile;
-import java.util.zip.ZipInputStream;
 
 import static java.time.temporal.ChronoUnit.DAYS;
 
@@ -55,87 +39,6 @@ public class NSEService {
                     .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0)
                     .parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
                     .toFormatter();
-
-    public String getDataForDay() {
-        HttpHeaders headers = new HttpHeaders();
-//        headers.set("User-Agent", "PostmanRuntime/7.29.2");
-        headers.set("Accept", "*/*");
-
-//        headers.set("Accept-Encoding", "gzip, deflate, br");
-        headers.set("Accept-Language", "en-US,en;q=0.5");
-        headers.set("Connection", "keep-alive");
-//        headers.set("Dnt", "1");
-        headers.set("Upgrade-Insecure-Requests", "1");
-        headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36");
-        headers.set("Host", "www1.nseindia.com");
-        headers.set("Referer", "https://www1.nseindia.com/products/content/equities/equities/eq_security.htm");
-        headers.set("Sec-GPC", "1");
-        headers.set("X-Requested-With", "XMLHttpRequest");
-        HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
-
-        ResponseEntity<String> responseTxt = restTemplate.exchange(
-//                "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY 50"
-                "https://www1.nseindia.com/products/dynaContent/common/productsSymbolMapping.jsp?symbol=INFY&segmentLink=3&symbolCount=1&series=ALL&dateRange=day&fromDate=&toDate=&dataType=PRICEVOLUMEDELIVERABLE"
-                , HttpMethod.GET, requestEntity, String.class, headers);
-
-        try {
-            String blogUrl = "https://www1.nseindia.com/products/dynaContent/common/productsSymbolMapping.jsp?symbol=INFY&segmentLink=3&symbolCount=1&series=ALL&dateRange=day&fromDate=&toDate=&dataType=PRICEVOLUMEDELIVERABLE";
-            Map<String, String> map= new HashMap<>();
-            map.put("Accept", "*/*");
-            map.put("Accept-Language", "en-US,en;q=0.5");
-            map.put("Connection", "keep-alive");
-            map.put("Upgrade-Insecure-Requests", "1");
-            map.put("Host", "www1.nseindia.com");
-            map.put("Referer", "https://www1.nseindia.com/products/content/equities/equities/eq_security.htm");
-            map.put("Sec-GPC", "1");
-            map.put("X-Requested-With", "XMLHttpRequest");
-            Document doc = Jsoup.connect(blogUrl).headers(map).get();
-
-            ArrayList<String> downServers = new ArrayList<>();
-            Element table = doc.select("table").get(0); //select the first table.
-            Elements rows = table.select("tr");
-
-            List<Stock> stocks= new LinkedList<>();
-            NumberFormat numberFormat= NumberFormat.getNumberInstance();
-            for (int i = 1; i < rows.size(); i++) { //first row is the col names so skip it. 0-Symbol, 1-Series, 2-Date, 3-Prev Close, 4-Open Price, 5-High Price, 6-Low Price, 7-Close Price, 8-VWAP, 9-Total Traded Quantity,
-                                                    // 10-TurnOver, 11-No. of Trades, 12-Deliverable Qty, 13-% Dly Qt to Traded Qty
-                Element row = rows.get(i);
-                Elements cols = row.select("td");
-
-                stocks.add(new Stock(cols.get(0).text(), numberFormat.parse(cols.get(7).text()).doubleValue(), numberFormat.parse(cols.get(5).text()).doubleValue(), numberFormat.parse(cols.get(6).text()).doubleValue(), numberFormat.parse(cols.get(4).text()).doubleValue(), LocalDateTime.parse(cols.get(2).text(), dateTimeFormatter)));
-            }
-            System.out.println(stocks);
-        } catch (IOException | ParseException e) {
-            e.printStackTrace();
-        }
-
-        return responseTxt.getBody().toString();
-    }
-
-    public List<Stock> convertTextToStocks(String jsonTxt) {
-        List<Stock> dailyData= new LinkedList<>();
-        try{
-            JSONObject json = new JSONObject(jsonTxt);
-            JSONArray stockArray = json.getJSONArray("data");
-            for(int i=0; i<stockArray.length(); i++){
-                JSONObject o = (JSONObject) stockArray.get(i);
-                Stock stock= AppUtils.convertToStockEntity(o);
-                dailyData.add(stock);
-            }
-        return dailyData;
-        } catch (JSONException e) {
-            throw new NSEDataProcessingException(e.getMessage());
-        }
-    }
-
-    public List<Stock> processData() {
-        String dataString= getDataForDay();
-        List<Stock> stockList= convertTextToStocks(dataString);
-        for(Stock stock: stockList){
-            System.out.println(stock.getSymbol());
-        }
-        return stockList;
-    }
 
     public Map<String, List<String>> getStocksListForDay() {
         // create map and list for 3 categories- bullish, bearish, unknown
