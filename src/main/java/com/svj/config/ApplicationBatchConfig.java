@@ -5,17 +5,22 @@ import com.svj.repository.StockDayPriceRepository;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.SkipListener;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.job.builder.SimpleJobBuilder;
+import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.skip.SkipPolicy;
+import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.item.data.RepositoryItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.LineMapper;
-import org.springframework.batch.item.file.MultiResourceItemReader;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
+import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -23,13 +28,17 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.convert.support.DefaultConversionService;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.util.LinkedList;
+import java.util.List;
 
 @Configuration
 @EnableBatchProcessing
@@ -44,25 +53,30 @@ public class ApplicationBatchConfig {
     @Autowired
     private JobBuilderFactory jobBuilderFactory;
 
+//    @Value("classpath:HistorialCsvData/*.csv")
     @Value("classpath:input/*.csv")
     private Resource[] resources;
 
     @Bean
-    public FlatFileItemReader<StockDayData> itemReader(){
-
+    public FlatFileItemReader<StockDayData> itemReader(Resource resource){
         FlatFileItemReader<StockDayData> itemReader= new FlatFileItemReader<>();
+        try {
+            itemReader.setResource(new FileSystemResource(resource.getURL().getPath()));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         itemReader.setLinesToSkip(1);
         itemReader.setLineMapper(lineMapper());
         return itemReader;
     }
 
-    @Bean
-    public MultiResourceItemReader<StockDayData> multiResourceItemReader(){
-        MultiResourceItemReader<StockDayData> multiResourceItemReader = new MultiResourceItemReader<StockDayData>();
-        multiResourceItemReader.setResources(resources);
-        multiResourceItemReader.setDelegate(itemReader());
-        return multiResourceItemReader;
-    }
+//    @Bean
+//    public MultiResourceItemReader<StockDayData> multiResourceItemReader(){
+//        MultiResourceItemReader<StockDayData> multiResourceItemReader = new MultiResourceItemReader<StockDayData>();
+//        multiResourceItemReader.setResources(resources);
+//        multiResourceItemReader.setDelegate(itemReader());
+//        return multiResourceItemReader;
+//    }
 
     private LineMapper<StockDayData> lineMapper() {
         DefaultLineMapper<StockDayData> lineMapper= new DefaultLineMapper<>();
@@ -93,16 +107,26 @@ public class ApplicationBatchConfig {
     }
 
     @Bean
-    public Step importStocksDataStep(){
+    public List<Step> importStocksDataStep(){
+        List<Step> steps= new LinkedList<>();
+        for(Resource resource: resources){
+            steps.add(createStepForFile(resource));
+        }
+        return steps;
+    }
+
+    public Step createStepForFile(Resource resource){
+        FlatFileItemReader<StockDayData> fileItemReader = itemReader(resource);
         return stepBuilderFactory.get("ImportStocksDataStep")
                 .<StockDayData, StockDayData>chunk(10) // name should match name of bean- use camel casing
-                .reader(multiResourceItemReader())
+//                .reader(multiResourceItemReader())
+                .reader(fileItemReader)
                 .processor(processor())
                 .writer(itemWriter())
                 .faultTolerant()
                 .skipPolicy(skipPolicy())
                 .listener(skipListener())
-//                .taskExecutor(taskExecutor())
+                .taskExecutor(taskExecutor())
 //                .skipLimit(100)
 //                .skip(NumberFormatException.class)
 //                .noSkip(FileNotFoundException.class)
@@ -111,9 +135,29 @@ public class ApplicationBatchConfig {
 
     @Bean
     public Job runJob(){
-        return jobBuilderFactory.get("ImportStocksDataJob")
-                .flow(importStocksDataStep())
-                .end().build();
+        SimpleJobBuilder importStocksDataJob = jobBuilderFactory.get("ImportStocksDataJob")
+                .incrementer(new RunIdIncrementer())
+                .start(step0());
+        for(Step step: importStocksDataStep()){
+            importStocksDataJob.next(step);
+        }
+        return importStocksDataJob.build();
+    }
+
+    private Step step0() {
+        return stepBuilderFactory.get("step0")
+                .tasklet(tasklet0())
+                .build();
+    }
+
+    private Tasklet tasklet0() {
+        return (new Tasklet() {
+            @Override
+            public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
+                System.out.println("Hello world  " );
+                return RepeatStatus.FINISHED;
+            }
+        });
     }
 
     @Bean
@@ -142,7 +186,7 @@ public class ApplicationBatchConfig {
             public LocalDate convert(String text) {
                 DateTimeFormatter formatter = new DateTimeFormatterBuilder()
                         .parseCaseInsensitive()
-                        .appendPattern("dd-MMM-yyyy")
+                        .appendPattern("d-MMM-yyyy")
                         .toFormatter();
                 return LocalDate.parse(text, formatter);
             }
