@@ -12,6 +12,7 @@ import org.springframework.batch.core.configuration.annotation.StepBuilderFactor
 import org.springframework.batch.core.job.builder.SimpleJobBuilder;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.core.step.skip.AlwaysSkipItemSkipPolicy;
 import org.springframework.batch.core.step.skip.SkipPolicy;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.item.data.RepositoryItemWriter;
@@ -64,6 +65,7 @@ public class ApplicationBatchConfig {
             e.printStackTrace();
         }
         itemReader.setLinesToSkip(1);
+        itemReader.setSaveState(false);
         itemReader.setLineMapper(lineMapper());
         return itemReader;
     }
@@ -107,14 +109,14 @@ public class ApplicationBatchConfig {
     public Step createStepForFile(Resource resource){
         FlatFileItemReader<StockDayData> fileItemReader = itemReader(resource);
         return stepBuilderFactory.get(resource.getFilename())
-                .<StockDayData, StockDayData>chunk(1) // name should match name of bean- use camel casing
+                .<StockDayData, StockDayData>chunk(100) // name should match name of bean- use camel casing
 //                .reader(multiResourceItemReader())
                 .reader(fileItemReader)
                 .processor(processor())
                 .writer(itemWriter())
                 .faultTolerant()
-                .skipPolicy(skipPolicy())
-                .listener(skipListener())
+                .skipPolicy(new AlwaysSkipItemSkipPolicy())
+                .listener(new BatchStepEventListener())
 //                .taskExecutor(taskExecutor())
 //                .skipLimit(100)
 //                .skip(NumberFormatException.class)
@@ -154,16 +156,6 @@ public class ApplicationBatchConfig {
         SimpleAsyncTaskExecutor taskExecutor= new SimpleAsyncTaskExecutor();
         taskExecutor.setConcurrencyLimit(8);
         return taskExecutor;
-    }
-
-    @Bean
-    public SkipPolicy skipPolicy(){
-        return new CustomSkipPolicy();
-    }
-
-    @Bean
-    public SkipListener skipListener(){
-        return new BatchStepEventListener();
     }
 
     @Bean

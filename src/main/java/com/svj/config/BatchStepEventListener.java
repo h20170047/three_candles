@@ -1,35 +1,54 @@
 package com.svj.config;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.batch.core.SkipListener;
+import org.springframework.batch.core.annotation.OnSkipInProcess;
+import org.springframework.batch.core.annotation.OnSkipInRead;
+import org.springframework.batch.core.annotation.OnSkipInWrite;
+import org.springframework.batch.item.file.FlatFileParseException;
+
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 @Slf4j
-public class BatchStepEventListener implements SkipListener {
-    ObjectMapper objectMapper= new ObjectMapper();
+public class BatchStepEventListener {
+    private String readerrFileName = "error/read_skipped";
+    private String proceserrFileName = "error/process_skipped";
+    private String writeFileName = "error/write_skipped";
 
-    @Override
-    public void onSkipInRead(Throwable throwable) {
-        log.info("A failure on read {}", throwable.getMessage());
-    }
-
-    @Override
-    public void onSkipInWrite(Object o, Throwable throwable) {
-        log.info("A failure in write: {}",throwable.getMessage());
-    }
-
-    @Override
-    public void onSkipInProcess(Object o, Throwable throwable) {
-        log.info("Customer value: {}, error: {}",writeJson(o), throwable.getMessage());
-    }
-
-    private String writeJson(Object o) {
-        try {
-            return objectMapper.writeValueAsString(o);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-            return e.getMessage();
+    @OnSkipInRead
+    public void onSkipRead(Throwable t){
+        if ( t instanceof FlatFileParseException){
+            FlatFileParseException ffep = (FlatFileParseException) t;
+            onSkip(ffep.getInput(),readerrFileName );
         }
+    }
+
+    @OnSkipInProcess
+    public void onSkipinProcess(Object item, Throwable t){
+        if ( t instanceof RuntimeException){
+            onSkip(item,proceserrFileName );
+        }
+    }
+
+    @OnSkipInWrite
+    public void onSkipinWrite(Object item, Throwable t){
+        if ( t instanceof RuntimeException){
+            onSkip(item,writeFileName );
+        }
+    }
+
+    public void onSkip(Object o, String fname){
+        FileOutputStream fos = null;
+
+        try {
+            fos = new FileOutputStream(fname, true);
+            fos.write(o.toString().getBytes());
+            fos.write("\r\n".getBytes());
+            fos.close();
+        } catch (IOException e){
+            e.printStackTrace();
+        }
+
+
     }
 }
