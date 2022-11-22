@@ -109,7 +109,7 @@ public class ApplicationBatchConfig {
     public Step createStepForFile(Resource resource){
         FlatFileItemReader<StockDayData> fileItemReader = itemReader(resource);
         return stepBuilderFactory.get(resource.getFilename())
-                .<StockDayData, StockDayData>chunk(100) // name should match name of bean- use camel casing
+                .<StockDayData, StockDayData>chunk(2000) // name should match name of bean- use camel casing
 //                .reader(multiResourceItemReader())
                 .reader(fileItemReader)
                 .processor(processor())
