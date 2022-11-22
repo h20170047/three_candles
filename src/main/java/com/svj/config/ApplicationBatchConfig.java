@@ -33,6 +33,7 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -108,6 +109,12 @@ public class ApplicationBatchConfig {
 
     public Step createStepForFile(Resource resource){
         FlatFileItemReader<StockDayData> fileItemReader = itemReader(resource);
+
+        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(4);
+        taskExecutor.setMaxPoolSize(4);
+        taskExecutor.afterPropertiesSet();
+
         return stepBuilderFactory.get(resource.getFilename())
                 .<StockDayData, StockDayData>chunk(2000) // name should match name of bean- use camel casing
 //                .reader(multiResourceItemReader())
@@ -117,7 +124,7 @@ public class ApplicationBatchConfig {
                 .faultTolerant()
                 .skipPolicy(new AlwaysSkipItemSkipPolicy())
                 .listener(new BatchStepEventListener())
-//                .taskExecutor(taskExecutor())
+                .taskExecutor(taskExecutor)
 //                .skipLimit(100)
 //                .skip(NumberFormatException.class)
 //                .noSkip(FileNotFoundException.class)
