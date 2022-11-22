@@ -53,11 +53,9 @@ public class ApplicationBatchConfig {
     @Autowired
     private JobBuilderFactory jobBuilderFactory;
 
-//    @Value("classpath:HistorialCsvData/*.csv")
     @Value("classpath:input/*.csv")
     private Resource[] resources;
 
-    @Bean
     public FlatFileItemReader<StockDayData> itemReader(Resource resource){
         FlatFileItemReader<StockDayData> itemReader= new FlatFileItemReader<>();
         try {
@@ -69,14 +67,6 @@ public class ApplicationBatchConfig {
         itemReader.setLineMapper(lineMapper());
         return itemReader;
     }
-
-//    @Bean
-//    public MultiResourceItemReader<StockDayData> multiResourceItemReader(){
-//        MultiResourceItemReader<StockDayData> multiResourceItemReader = new MultiResourceItemReader<StockDayData>();
-//        multiResourceItemReader.setResources(resources);
-//        multiResourceItemReader.setDelegate(itemReader());
-//        return multiResourceItemReader;
-//    }
 
     private LineMapper<StockDayData> lineMapper() {
         DefaultLineMapper<StockDayData> lineMapper= new DefaultLineMapper<>();
@@ -106,7 +96,6 @@ public class ApplicationBatchConfig {
         return itemWriter;
     }
 
-    @Bean
     public List<Step> importStocksDataStep(){
         List<Step> steps= new LinkedList<>();
         for(Resource resource: resources){
@@ -117,8 +106,8 @@ public class ApplicationBatchConfig {
 
     public Step createStepForFile(Resource resource){
         FlatFileItemReader<StockDayData> fileItemReader = itemReader(resource);
-        return stepBuilderFactory.get("ImportStocksDataStep")
-                .<StockDayData, StockDayData>chunk(10) // name should match name of bean- use camel casing
+        return stepBuilderFactory.get(resource.getFilename())
+                .<StockDayData, StockDayData>chunk(1) // name should match name of bean- use camel casing
 //                .reader(multiResourceItemReader())
                 .reader(fileItemReader)
                 .processor(processor())
@@ -126,7 +115,7 @@ public class ApplicationBatchConfig {
                 .faultTolerant()
                 .skipPolicy(skipPolicy())
                 .listener(skipListener())
-                .taskExecutor(taskExecutor())
+//                .taskExecutor(taskExecutor())
 //                .skipLimit(100)
 //                .skip(NumberFormatException.class)
 //                .noSkip(FileNotFoundException.class)
@@ -136,7 +125,7 @@ public class ApplicationBatchConfig {
     @Bean
     public Job runJob(){
         SimpleJobBuilder importStocksDataJob = jobBuilderFactory.get("ImportStocksDataJob")
-                .incrementer(new RunIdIncrementer())
+                .incrementer(new RunIdIncrementer()) // to make sure new jobInstance is run, with a diff ID
                 .start(step0());
         for(Step step: importStocksDataStep()){
             importStocksDataJob.next(step);
