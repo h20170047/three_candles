@@ -23,7 +23,7 @@ public class StockDayData {
     private double CLOSE;
     private double LAST;
     private double PREVCLOSE;
-    private int TOTTRDQTY;
+    private long TOTTRDQTY;
     private double TOTTRDVAL;
     private LocalDate TIMESTAMP;
 }

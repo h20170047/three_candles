@@ -13,6 +13,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -44,6 +46,7 @@ public class StockHistoryService {
              CSVPrinter csvPrinter = new CSVPrinter(new PrintWriter(out), format);) {
             csvPrinter.printRecord(Arrays.asList("SYMBOL", "SERIES", "OPEN", "HIGH", "LOW", "CLOSE", "LAST", "PREVCLOSE", "TOTTRDQTY", "TOTTRDVAL", "TIMESTAMP"));
             List<StockDayData> stockDatas = getStockHistory(symbol);
+            Collections.sort(stockDatas, Comparator.comparing(StockDayData::getTIMESTAMP));
             for (StockDayData stockData : stockDatas) {
                 List<String> data = Arrays.asList(
                         stockData.getSYMBOL(),

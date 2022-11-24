@@ -95,7 +95,7 @@ public class ApplicationBatchConfig {
     public RepositoryItemWriter<StockDayData> itemWriter(){
         RepositoryItemWriter<StockDayData> itemWriter= new RepositoryItemWriter<>();
         itemWriter.setRepository(repository);
-        itemWriter.setMethodName("save");
+//        itemWriter.setMethodName("save"); //using default saveAll() brings up performance by huge margin. Dont override it with save() https://github.com/spring-projects/spring-batch/issues/3720
         return itemWriter;
     }
 
@@ -111,12 +111,12 @@ public class ApplicationBatchConfig {
         FlatFileItemReader<StockDayData> fileItemReader = itemReader(resource);
 
         ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
-        taskExecutor.setCorePoolSize(4);
-        taskExecutor.setMaxPoolSize(4);
+        taskExecutor.setCorePoolSize(8);
+        taskExecutor.setMaxPoolSize(8);
         taskExecutor.afterPropertiesSet();
 
         return stepBuilderFactory.get(resource.getFilename())
-                .<StockDayData, StockDayData>chunk(2000) // name should match name of bean- use camel casing
+                .<StockDayData, StockDayData>chunk(1000) // name should match name of bean- use camel casing
 //                .reader(multiResourceItemReader())
                 .reader(fileItemReader)
                 .processor(processor())

@@ -42,8 +42,7 @@ public class BatchStepEventListener {
 
         try {
             fos = new FileOutputStream(fname, true);
-            fos.write(o.toString().getBytes());
-            fos.write("\r\n".getBytes());
+            fos.write(o.toString().concat(",\n").getBytes());
             fos.close();
         } catch (IOException e){
             e.printStackTrace();
