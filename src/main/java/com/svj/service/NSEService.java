@@ -2,13 +2,14 @@ package com.svj.service;
 
 import com.svj.entity.Stock;
 import org.apache.ant.compress.taskdefs.Unzip;
-import org.jsoup.Jsoup;
+import org.apache.commons.io.IOUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -75,7 +76,6 @@ public class NSEService {
             e.printStackTrace();
         }
         for(String stock: threeDaysInfo.keySet()){
-            // reject= 1, bearish= 2, bullish= 3
             List<Stock> data= threeDaysInfo.get(stock);
             boolean isBullish= data.get(0).getOpen()< data.get(0).getClose();
             int i= 1;
@@ -146,21 +146,17 @@ public class NSEService {
             map.put("Sec-GPC", "1");
             map.put("X-Requested-With", "XMLHttpRequest");
             String savedFileName = "cm".concat(day.getDayOfMonth()<10?"0".concat(String.valueOf(day.getDayOfMonth())): String.valueOf(day.getDayOfMonth())).concat(day.getMonth().toString().substring(0, 3)).concat(String.valueOf(day.getYear())).concat("bhav.csv.zip");
-            byte[] bytes = Jsoup.connect(String.format("https://www1.nseindia.com/content/historical/EQUITIES/%s/%s/%s", day.getYear(), day.getMonth().toString().substring(0, 3), savedFileName))
-                    .headers(map)
-                    .ignoreContentType(true)
-                    .timeout(600000)
-                    .execute()
-                    .bodyAsBytes();
+            String url= String.format("https://www1.nseindia.com/content/historical/EQUITIES/%s/%s/%s", day.getYear(), day.getMonth().toString().substring(0, 3), savedFileName);
+            byte[] bytes= IOUtils.toByteArray(new URL(url));
+            File file = new File("C:\\Users\\svjra\\Documents\\git\\Springboot\\three_candles\\zipData\\".concat(savedFileName));
+            file.getParentFile().mkdirs(); // Will create parent directories if not exists
+            file.createNewFile();
+            FileOutputStream fos = new FileOutputStream(file);
             try {
                 if (!savedFileName.endsWith(".zip")){
                     System.out.println(String.format("Issue with data in %s", day));
                     return;
                 }
-                File file = new File("C:\\Users\\svjra\\Documents\\git\\Springboot\\three_candles\\zipData\\".concat(savedFileName));
-                file.getParentFile().mkdirs(); // Will create parent directories if not exists
-                file.createNewFile();
-                FileOutputStream fos = new FileOutputStream(file );
                 fos.write(bytes);
                 fos.close();
 
@@ -173,6 +169,7 @@ public class NSEService {
                 unzipper.execute();
             } catch (IOException e) {
                 System.err.println("Could not read the file at '" + day + ":"+e.getMessage());
+                fos.close();
             }
 
         } catch (IOException e) {
