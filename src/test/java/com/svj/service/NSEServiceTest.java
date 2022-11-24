@@ -1,20 +1,13 @@
 package com.svj.service;
 
-import com.google.gson.Gson;
-import com.svj.entity.Stock;
-import com.svj.utils.AppUtils;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
-
-import org.apache.commons.io.IOUtils;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,12 +47,12 @@ public class NSEServiceTest {
 
     @Test
     public void getNSEData(){
-        LocalDate startDate= LocalDate.parse("1-1-1997", df);
-        LocalDate endDate= LocalDate.parse("15-11-2022", df);
+        LocalDate startDate= LocalDate.parse("19-11-2022", df);
+        LocalDate endDate= LocalDate.parse("24-11-2022", df);
         List<LocalDate> holidays= NSEService.getHolidays();
         List<LocalDate> businessDays = NSEService.getBusinessDays(startDate, endDate, holidays);
-//        for(LocalDate day: businessDays){
-//            NSEService.getBhavCopy(day);
-//        }
+        for(LocalDate day: businessDays){
+            NSEService.getBhavCopy(day);
+        }
     }
 }

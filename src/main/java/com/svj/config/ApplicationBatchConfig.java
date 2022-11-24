@@ -116,7 +116,7 @@ public class ApplicationBatchConfig {
         taskExecutor.afterPropertiesSet();
 
         return stepBuilderFactory.get(resource.getFilename())
-                .<StockDayData, StockDayData>chunk(1000) // name should match name of bean- use camel casing
+                .<StockDayData, StockDayData>chunk(1000)
 //                .reader(multiResourceItemReader())
                 .reader(fileItemReader)
                 .processor(processor())
