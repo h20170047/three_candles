@@ -9,3 +9,7 @@ spring:
             enabled: false
         jdbc:
             initialize-schema: ALWAYS
+
+nse:
+    data:
+        bhavcopy: "src/main/resources/data/"

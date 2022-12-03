@@ -1,0 +1,3 @@
+nse:
+    data:
+        bhavcopy: "C:\\Users\\svjra\\Documents\\git\\Springboot\\three_candles\\src\\main\\resources\\data\\"
