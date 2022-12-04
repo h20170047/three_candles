@@ -4,15 +4,14 @@ import com.svj.dto.TradeSetupResponseDTO;
 import com.svj.entity.Stock;
 import com.svj.exception.FileException;
 import com.svj.exception.StockProcessingException;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ant.compress.taskdefs.Unzip;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
@@ -29,19 +28,28 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.svj.utils.Constants.*;
 import static java.time.temporal.ChronoUnit.DAYS;
 
 @Service
+@Data
 @Slf4j
 public class NSEService {
-
-    private String NSEDailyDataURL="https://www.nseindia.com/api/equity-stockIndices?index=NIFTY 50";
-    private RestTemplate restTemplate= new RestTemplate();
     private String dataPath;
+    private String niftyFilePath;
+    private String holidayFilePath;
+    private List<LocalDate> holidays;
+    private int candleCount;
     DateTimeFormatter dateTimeFormatter;
 
-    public NSEService(@Value("${nse.data.bhavcopy}")String dataPath){
+    public NSEService(@Value("${nse.data.bhavcopy}")String dataPath,
+                      @Value("${nse.data.nifty50}")String niftyFilePath,
+                      @Value("${nse.data.holiday}")String holidayFilePath,
+                      @Value("${strategy.countOfCandlesConsidered}")Integer candleCount){
         this.dataPath= dataPath;
+        this.niftyFilePath = niftyFilePath;
+        this.holidayFilePath = holidayFilePath;
+        this.candleCount= candleCount;
         dateTimeFormatter= new DateTimeFormatterBuilder()
                         .parseCaseInsensitive()
                         .appendPattern("dd-MMM-yyyy[ [HH][:mm][:ss][.SSS]]")
@@ -56,13 +64,14 @@ public class NSEService {
         log.info("NSEService:getStocksList Method execution started");
         try{
             TradeSetupResponseDTO result= new TradeSetupResponseDTO();
+            result.setTradeDate(tradeDay);
             // get last 3 trading days from i/p
             // read files to m/y and process
             // in case required data is not present o/p valid error message
-            List<LocalDate> holidays = getHolidays();
+            List<LocalDate> holidays = getHolidayList(holidayFilePath);
             List<Path> dataList= new LinkedList<>();
             LocalDate processingDay= tradeDay.plusDays(-1); // get analysis from last 3 days
-            while(dataList.size()<3){
+            while(dataList.size()<candleCount){
                 // add file to dataList only if day is working
                 if(processingDay.getDayOfWeek()!= DayOfWeek.SATURDAY && processingDay.getDayOfWeek()!= DayOfWeek.SUNDAY){
                     if(!holidays.contains(processingDay)){
@@ -76,7 +85,7 @@ public class NSEService {
             // get 2weeks data from the nse1 api, get the last 3 days info from today, if it is market-hours. else consider today too
             // return response map data
             // considering only NIFTY 50 stocks
-            List<String> nifty50Stocks= Arrays.asList("ADANIENT", "BAJAJFINSV", "HINDALCO", "ADANIPORTS", "JSWSTEEL", "ULTRACEMCO", "TATASTEEL", "TATAMOTORS", "RELIANCE", "UPL", "SBIN", "ONGC", "BRITANNIA", "ASIANPAINT", "BAJFINANCE", "GRASIM", "AXISBANK", "LT", "TITAN", "TATACONSUM", "INDUSINDBK", "WIPRO", "COALINDIA", "ITC", "TCS", "KOTAKBANK", "M&M", "MARUTI", "NESTLEIND", "BAJAJ-AUTO", "TECHM", "HCLTECH", "HDFC", "BHARTIARTL", "EICHERMOT", "SUNPHARMA", "NTPC", "ICICIBANK", "HDFCBANK", "APOLLOHOSP", "SBILIFE", "DIVISLAB", "POWERGRID", "HINDUNILVR", "CIPLA", "HDFCLIFE", "BPCL", "DRREDDY", "INFY", "HEROMOTOCO");
+            List<String> nifty50Stocks= getDataFromFile(niftyFilePath);
             Map<String, List<Stock>> threeDaysInfo= new HashMap<>();
             List<String> bullish= new LinkedList<>();
             List<String> bearish= new LinkedList<>();
@@ -86,10 +95,10 @@ public class NSEService {
                     try {
                         Files.lines(file)
                                 .skip(1)
-                                .filter(line-> line.split(",")[1].equals("EQ"))
-                                .filter(line-> nifty50Stocks.contains(line.split(",")[0])) // if stock if nifty50, save to list
+                                .filter(line-> line.split(",")[ONE].equals("EQ"))
+                                .filter(line-> nifty50Stocks.contains(line.split(",")[ZERO])) // if stock if nifty50, save to list
                                 .map(line-> line.split(","))
-                                .map(s-> new Stock(s[0], Double.parseDouble(s[5]), Double.parseDouble(s[3]), Double.parseDouble(s[4]), Double.parseDouble(s[2]), LocalDateTime.parse(s[10], dateTimeFormatter)))
+                                .map(s-> new Stock(s[ZERO], Double.parseDouble(s[FIVE]), Double.parseDouble(s[THREE]), Double.parseDouble(s[FOUR]), Double.parseDouble(s[TWO]), LocalDateTime.parse(s[TEN], dateTimeFormatter))) // Pulling out necessary details
                                 .forEach(stock-> {
                                     List<Stock> currList= threeDaysInfo.getOrDefault(stock.getSymbol(), new LinkedList<>());
                                     currList.add(stock);
@@ -103,15 +112,18 @@ public class NSEService {
                 });
             for(String stock: threeDaysInfo.keySet()){
                 List<Stock> data= threeDaysInfo.get(stock);
-                boolean isBullish= data.get(0).getOpen()< data.get(0).getClose();
-                int i= 1;
-                for(; i<3; i++){
-                    if(data.get(i).getOpen()< data.get(i).getClose()!= isBullish){
-                        i= 10;
+                boolean isBullish= data.get(ZERO).getOpen()< data.get(ZERO).getClose(); //Consider stock's behavior with first candle
+                int i= ONE; // process from next candle wrt first candle
+                for(; i<candleCount; i++){
+                    if(data.get(i).getOpen()< data.get(i).getClose()!= isBullish){ // checking behavior of stock's i-th candle with its first candle
+                        i= TEN;
                     }
                 }
-                if(i==3){
-                    boolean b = isBullish ? bullish.add(stock) : bearish.add(stock);
+                if(i==candleCount){ // This stock has similar behavior as its first candle. Categorize it into either bullish or bearish bucket
+                    if(isBullish)
+                        bullish.add(stock);
+                    else
+                        bearish.add(stock);
                 }
             }
             result.setBullish(bullish);
@@ -124,34 +136,37 @@ public class NSEService {
         }
     }
 
-    private String getFileNameFromDate(LocalDate day) {
-        return "cm".concat(day.getDayOfMonth()<10?"0".concat(String.valueOf(day.getDayOfMonth())): String.valueOf(day.getDayOfMonth())).concat(day.getMonth().toString().substring(0, 3)).concat(String.valueOf(day.getYear())).concat("bhav.csv");
-    }
-
-
-    public void getOldData(){
-        getHolidays();
-    }
-
-    public List<LocalDate> getHolidays() {
-        Scanner s = null;
+    public List<String> getDataFromFile(String filePath) {
+        List<String> stocks= new LinkedList<>();
         try {
-            s = new Scanner(new File("C:\\Users\\svjra\\Documents\\git\\Springboot\\three_candles\\src\\main\\resources\\NSEHolidays.txt"));
-        } catch (FileNotFoundException e) {
+            List<String> allLines = Files.readAllLines(Paths.get(filePath));
+            for (String line : allLines) {
+                stocks.add(line);
+            }
+        } catch (IOException e) {
             e.printStackTrace();
+            throw new FileException(e.getMessage());
         }
+        return stocks;
+    }
+
+    public List<LocalDate> getHolidayList(String filePath) {
+        List<String> holidaysText= getDataFromFile(filePath);
         ArrayList<LocalDate> holidays = new ArrayList<LocalDate>();
-        while (s.hasNext()){
-            String readLine = s.next();
-            readLine = (readLine.charAt(readLine.length() - 1) == ',') ? readLine.substring(0, readLine.length() - 1) : readLine;
-            readLine= readLine.substring(1, readLine.length()-1);
-            holidays.add(LocalDate.parse(readLine));
-        }
-        s.close();
+        holidaysText.stream()
+                .forEach(holiday-> holidays.add(LocalDate.parse(holiday)));
         return holidays;
     }
+    public String getFileNameFromDate(LocalDate day) {
+        String dayOfMonth= day.getDayOfMonth()<10?"0".concat(String.valueOf(day.getDayOfMonth())): String.valueOf(day.getDayOfMonth());
+        String monthAlpha= day.getMonth().toString().substring(0, 3);
+        String yearStr= String.valueOf(day.getYear());
+        return "cm".concat(dayOfMonth).concat(monthAlpha).concat(yearStr).concat("bhav.csv");
+    }
 
-    public List<LocalDate> getBusinessDays(LocalDate startDate, LocalDate endDate, List<LocalDate> holidays) {
+    public List<LocalDate> getBusinessDays(LocalDate startDate, LocalDate endDate) {
+        if(holidays== null)
+            holidays= getHolidayList(holidayFilePath);
         if(endDate.compareTo(startDate)< 0)
             return null;
         List<LocalDate> businessDays= Stream.iterate(startDate,date-> date.plusDays(1))
@@ -163,8 +178,6 @@ public class NSEService {
         return businessDays;
     }
 
-
-    DateTimeFormatter df = DateTimeFormatter.ofPattern("d-M-yyyy");
 
     // get response for a given date
     // https://www1.nseindia.com/ArchieveSearch?h_filetype=eqbhav&date=15-11-2022&section=EQ

@@ -1,3 +1,13 @@
 nse:
     data:
-        bhavcopy: "C:\\Users\\svjra\\Documents\\git\\Springboot\\three_candles\\src\\main\\resources\\data\\"
+        bhavcopy: "src/test/resources/data/"
+        holiday: "src/test/resources/NSEHolidays.txt"
+        nifty50: "src/test/resources/Nifty50List.txt"
+
+spring:
+    batch:
+        job:
+            enabled: false
+
+strategy:
+    countOfCandlesConsidered: 3

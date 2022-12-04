@@ -9,8 +9,8 @@ import org.springframework.http.HttpStatus;
 import java.util.List;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ServiceResponse<T> {
     private HttpStatus status;

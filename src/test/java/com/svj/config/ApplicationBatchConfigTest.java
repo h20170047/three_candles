@@ -39,20 +39,4 @@ class ApplicationBatchConfigTest {
     @Value("classpath:input/*.csv")
     private Resource[] resources;
 
-    @Test
-    void itemReader() {
-//        ApplicationBatchConfig config= new ApplicationBatchConfig();
-//        config.itemReader();
-//        Arrays.stream(ApplicationBatchConfig.resources).forEach(r-> System.out.println(r.getFilename()));
-//
-//        DateTimeFormatter formatter = new DateTimeFormatterBuilder()
-//                                        .parseCaseInsensitive()
-//                                        .appendPattern("dd-MMM-yyyy")
-//                                        .toFormatter();
-//        LocalDate date = LocalDate.parse("02-NOV-2022", formatter);
-//        System.out.println(date);
-
-        ClassLoader classLoader = this.getClass().getClassLoader();
-        System.out.println(resources);
-    }
 }

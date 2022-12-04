@@ -7,6 +7,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -29,6 +30,17 @@ public class ApplicationGlobalExceptionHandler {
                         });
         serviceResponse.setStatus(HttpStatus.BAD_REQUEST);
         serviceResponse.setErrors(errorList);
+        return serviceResponse;
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ServiceResponse<?> handleServiceException(MethodArgumentTypeMismatchException ex){
+        ServiceResponse<?> serviceResponse= new ServiceResponse<>();
+
+        ErrorDTO errorDTO= new ErrorDTO(String.format("Arguement %s did not match required type of %s. ErrorMessage- %s", ex.getParameter().getParameterName(), ex.getParameter().getParameterType().toString(), ex. getMessage()));
+        serviceResponse.setStatus(HttpStatus.BAD_REQUEST);
+        serviceResponse.setErrors(Arrays.asList(errorDTO));
         return serviceResponse;
     }
 
