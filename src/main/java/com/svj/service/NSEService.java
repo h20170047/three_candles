@@ -2,7 +2,6 @@ package com.svj.service;
 
 import com.svj.dto.TradeSetupResponseDTO;
 import com.svj.entity.Stock;
-import com.svj.exception.FileException;
 import com.svj.exception.StockProcessingException;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +14,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.DayOfWeek;
@@ -28,6 +26,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.svj.utils.AppUtils.getResourceFileAsStringList;
 import static com.svj.utils.Constants.*;
 import static java.time.temporal.ChronoUnit.DAYS;
 
@@ -85,30 +84,25 @@ public class NSEService {
             // get 2weeks data from the nse1 api, get the last 3 days info from today, if it is market-hours. else consider today too
             // return response map data
             // considering only NIFTY 50 stocks
-            List<String> nifty50Stocks= getDataFromFile(niftyFilePath);
+            List<String> nifty50Stocks= getResourceFileAsStringList(niftyFilePath);
             Map<String, List<Stock>> threeDaysInfo= new HashMap<>();
             List<String> bullish= new LinkedList<>();
             List<String> bearish= new LinkedList<>();
             dataList.stream()
                 .forEach(file->{
                     System.out.println("Processing "+file.getFileName());
-                    try {
-                        Files.lines(file)
-                                .skip(1)
-                                .filter(line-> line.split(",")[ONE].equals("EQ"))
-                                .filter(line-> nifty50Stocks.contains(line.split(",")[ZERO])) // if stock if nifty50, save to list
-                                .map(line-> line.split(","))
-                                .map(s-> new Stock(s[ZERO], Double.parseDouble(s[FIVE]), Double.parseDouble(s[THREE]), Double.parseDouble(s[FOUR]), Double.parseDouble(s[TWO]), LocalDateTime.parse(s[TEN], dateTimeFormatter))) // Pulling out necessary details
-                                .forEach(stock-> {
-                                    List<Stock> currList= threeDaysInfo.getOrDefault(stock.getSymbol(), new LinkedList<>());
-                                    currList.add(stock);
-                                    threeDaysInfo. put(stock.getSymbol(), currList);
-                                });
+                    getResourceFileAsStringList(file.toString()).stream()
+                            .skip(1)
+                            .filter(line-> line.split(",")[ONE].equals("EQ"))
+                            .filter(line-> nifty50Stocks.contains(line.split(",")[ZERO])) // if stock if nifty50, save to list
+                            .map(line-> line.split(","))
+                            .map(stringArray-> new Stock(stringArray[ZERO], Double.parseDouble(stringArray[FIVE]), Double.parseDouble(stringArray[THREE]), Double.parseDouble(stringArray[FOUR]), Double.parseDouble(stringArray[TWO]), LocalDateTime.parse(stringArray[TEN], dateTimeFormatter))) // Pulling out necessary details
+                            .forEach(stock-> {
+                                List<Stock> currList= threeDaysInfo.getOrDefault(stock.getSymbol(), new LinkedList<>());
+                                currList.add(stock);
+                                threeDaysInfo. put(stock.getSymbol(), currList);
+                            });
 
-                    } catch (IOException ex) {
-                        ex.printStackTrace();
-                        throw new FileException("Issue with file: ".concat(ex.getLocalizedMessage()).concat(": ").concat(ex.getClass().toString()));
-                    }
                 });
             for(String stock: threeDaysInfo.keySet()){
                 List<Stock> data= threeDaysInfo.get(stock);
@@ -136,22 +130,8 @@ public class NSEService {
         }
     }
 
-    public List<String> getDataFromFile(String filePath) {
-        List<String> stocks= new LinkedList<>();
-        try {
-            List<String> allLines = Files.readAllLines(Paths.get(filePath));
-            for (String line : allLines) {
-                stocks.add(line);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw new FileException(e.getMessage());
-        }
-        return stocks;
-    }
-
     public List<LocalDate> getHolidayList(String filePath) {
-        List<String> holidaysText= getDataFromFile(filePath);
+        List<String> holidaysText= getResourceFileAsStringList(filePath);
         ArrayList<LocalDate> holidays = new ArrayList<LocalDate>();
         holidaysText.stream()
                 .forEach(holiday-> holidays.add(LocalDate.parse(holiday)));

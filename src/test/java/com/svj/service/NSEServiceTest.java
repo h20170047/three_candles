@@ -1,17 +1,16 @@
 package com.svj.service;
 
 import com.svj.dto.TradeSetupResponseDTO;
-import com.svj.exception.FileException;
 import com.svj.exception.StockProcessingException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.List;
 
 import static com.svj.utils.AppUtils.dateFormatter;
+import static com.svj.utils.AppUtils.getResourceFileAsStringList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -21,9 +20,9 @@ public class NSEServiceTest {
 
     @BeforeEach
     public void setup(){
-        service = new NSEService("src/test/resources/data/",
-                "src/main/resources/Nifty50List.txt",
-                "src/test/resources/NSEHolidays.txt",
+        service = new NSEService("data/",
+                "Nifty50List.txt",
+                "NSEHolidays.txt",
                 3);
     }
 
@@ -32,6 +31,13 @@ public class NSEServiceTest {
         TradeSetupResponseDTO result = service.getStocksList(LocalDate.parse("26-11-2022", dateFormatter));
         assertThat(result.getBullish()).isNotEmpty();
         assertThat(result.getBearish()).isNotEmpty();
+    }
+
+    @Test
+    @Disabled
+    public void getStocksList_getNextTradeSetup(){
+        TradeSetupResponseDTO result = service.getStocksList(LocalDate.parse("12-12-2022", dateFormatter));
+        System.out.println(result);
     }
 
     @Test
@@ -72,15 +78,11 @@ public class NSEServiceTest {
         assertThat(holidays.size()).isEqualTo(346);
     }
 
-    @Test
-    public void getNiftyStocks(){
-        List<String> holidays = service.getDataFromFile(service.getNiftyFilePath());
-        assertThat(holidays.size()).isEqualTo(50);
-    }
 
     @Test
-    public void getDataFromFile_missingFile(){
-        assertThrows(FileException.class, ()-> service.getDataFromFile("invalid path"));
+    public void getNiftyStocks(){
+        List<String> holidays = getResourceFileAsStringList(service.getNiftyFilePath());
+        assertThat(holidays.size()).isEqualTo(50);
     }
 
     @Test

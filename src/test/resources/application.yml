@@ -1,8 +1,8 @@
 nse:
     data:
-        bhavcopy: "src/test/resources/data/"
-        holiday: "src/test/resources/NSEHolidays.txt"
-        nifty50: "src/test/resources/Nifty50List.txt"
+        bhavcopy: "data/"
+        holiday: "NSEHolidays.txt"
+        nifty50: "Nifty50List.txt"
 
 spring:
     batch:

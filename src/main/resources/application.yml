@@ -12,9 +12,11 @@ spring:
 
 nse:
     data:
-        bhavcopy: "src/main/resources/data/"
-        holiday: "src/main/resources/NSEHolidays.txt"
-        nifty50: "src/main/resources/Nifty50List.txt"
+        bhavcopy: "data/"
+        holiday: "NSEHolidays.txt"
+        nifty50: "Nifty50List.txt"
 
 strategy:
     countOfCandlesConsidered: 3
+
+#server.port: 8081

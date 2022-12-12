@@ -92,6 +92,7 @@
 				</configuration>
 			</plugin>
 		</plugins>
+		<finalName>3-candles-docker</finalName>
 	</build>
 
 </project>

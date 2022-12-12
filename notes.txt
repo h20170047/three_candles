@@ -1,0 +1,2 @@
+docker-compose up // to get the services up
+docker-compose down // to get the services down

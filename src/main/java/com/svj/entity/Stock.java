@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+// used to filter stocks based on open and close. H, L can be used for other strategies
 public class Stock {
     private String symbol;
     private double close; // LTP of the day will be close price for the day.
