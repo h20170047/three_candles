@@ -36,7 +36,7 @@ public class NSEServiceTest {
     @Test
     @Disabled
     public void getStocksList_getNextTradeSetup(){
-        TradeSetupResponseDTO result = service.getStocksList(LocalDate.parse("12-12-2022", dateFormatter));
+        TradeSetupResponseDTO result = service.getStocksList(LocalDate.parse("15-12-2022", dateFormatter));
         System.out.println(result);
     }
 

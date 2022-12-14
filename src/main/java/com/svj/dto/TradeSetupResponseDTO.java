@@ -15,4 +15,5 @@ public class TradeSetupResponseDTO {
     private LocalDate tradeDate;
     private List<String> bullish;
     private List<String> bearish;
+    private List<String> trending;
 }

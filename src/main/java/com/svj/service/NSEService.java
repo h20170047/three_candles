@@ -26,6 +26,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.svj.service.TechnicalIndicators.narrowCPR;
+import static com.svj.utils.AppUtils.dateFormatter;
 import static com.svj.utils.AppUtils.getResourceFileAsStringList;
 import static com.svj.utils.Constants.*;
 import static java.time.temporal.ChronoUnit.DAYS;
@@ -75,7 +77,7 @@ public class NSEService {
                 if(processingDay.getDayOfWeek()!= DayOfWeek.SATURDAY && processingDay.getDayOfWeek()!= DayOfWeek.SUNDAY){
                     if(!holidays.contains(processingDay)){
                         log.debug("NSEService:getStocksList Identified business days prior to tradeDay for analysis is {}", processingDay.toString());
-                        dataList.add(Paths.get(dataPath.concat(getFileNameFromDate(processingDay))));
+                        dataList.add(Paths.get(dataPath.concat(getFileNameFromDate(processingDay)))); // note that previous day's data is inserted first
                     }
                 }
                 processingDay= processingDay.plusDays(-1);
@@ -88,6 +90,7 @@ public class NSEService {
             Map<String, List<Stock>> threeDaysInfo= new HashMap<>();
             List<String> bullish= new LinkedList<>();
             List<String> bearish= new LinkedList<>();
+            List<String> trending= new LinkedList<>();
             dataList.stream()
                 .forEach(file->{
                     System.out.println("Processing "+file.getFileName());
@@ -119,9 +122,13 @@ public class NSEService {
                     else
                         bearish.add(stock);
                 }
+                // analyse the latest day's CPR to check if it is trending for trade day. Last day is inserted first
+                if(narrowCPR(data.get(0)))  //check for CPR trend on all Nifty50 stocks
+                    trending.add(stock);
             }
             result.setBullish(bullish);
             result.setBearish(bearish);
+            result.setTrending(trending);
             log.info("NSEService:getStocksList Method execution completed");
             return result;
         }catch (Exception e){
