@@ -2,7 +2,7 @@ package com.svj.controller;
 
 import com.svj.dto.ServiceResponse;
 import com.svj.dto.TradeSetupResponseDTO;
-import com.svj.service.NSEService;
+import com.svj.service.StocksProcessor;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -22,10 +22,10 @@ import java.time.LocalDate;
 @RequestMapping("/analysis")
 @Slf4j
 public class AnalysisController {
-    private NSEService service;
+    private StocksProcessor service;
 
-    public AnalysisController(NSEService nseService){
-        service= nseService;
+    public AnalysisController(StocksProcessor stocksProcessor){
+        service= stocksProcessor;
     }
 
     @GetMapping("/trade-setup/{tradeDate}")

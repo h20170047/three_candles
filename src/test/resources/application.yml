@@ -3,6 +3,8 @@ nse:
         bhavcopy: "data/"
         holiday: "NSEHolidays.txt"
         nifty50: "Nifty50List.txt"
+        savePath: "save/"
+        unzip: "target/test-classes/data"
 
 spring:
     batch:

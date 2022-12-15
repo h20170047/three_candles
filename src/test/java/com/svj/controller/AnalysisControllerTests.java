@@ -3,7 +3,7 @@ package com.svj.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.svj.exception.ApplicationGlobalExceptionHandler;
-import com.svj.service.NSEService;
+import com.svj.service.StocksProcessor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +29,7 @@ public class AnalysisControllerTests {
     @Autowired
     private AnalysisController controller;
     @Autowired
-    private NSEService service;
+    private StocksProcessor service;
     public ObjectMapper objectMapper;
     private final String uri= "/analysis";
 

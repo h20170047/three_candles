@@ -15,6 +15,8 @@ nse:
         bhavcopy: "data/"
         holiday: "NSEHolidays.txt"
         nifty50: "Nifty50List.txt"
+        unzip: "target/test-classes/data"
+        savePath: "save/"
 
 strategy:
     countOfCandlesConsidered: 3
